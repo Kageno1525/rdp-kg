@@ -1,0 +1,47 @@
+name: Kageno-RDP-Elite
+
+on: [workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Preparing Environment
+        run: |
+          # تحميل وفك ضغط ngrok
+          Invoke-WebRequest https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-stable-windows-amd64.zip -OutFile ngrok.zip
+          Expand-Archive ngrok.zip
+          
+      - name: Authenticate ngrok
+        run: |
+          # استبدل YOUR_AUTH_TOKEN بالتوكن الحقيقي بتاعك
+          ./ngrok/ngrok.exe authtoken YOUR_AUTH_TOKEN
+          
+      - name: Configure RDP & User
+        run: |
+          # إنشاء مستخدم جديد بصلاحيات أدمن
+          net user runneradmin Password123! /add
+          net localgroup administrators runneradmin /add
+          
+          # تفعيل الـ RDP في الريجستري والفايروال
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
+          
+      - name: Launch Tunnel & Keep Alive
+        run: |
+          # تشغيل التونيل في الخلفية
+          Start-Process ./ngrok/ngrok.exe -ArgumentList "tcp 3389"
+          
+          echo "======================================"
+          echo "RDP is Ready! Connect using the IP from ngrok dashboard."
+          echo "User: runneradmin | Pass: Password123!"
+          echo "======================================"
+          
+          # أهم سطر: يخلي الـ Action ميفصلش لمدة 6 ساعات
+          $n = 360
+          do {
+            Write-Host "RDP is still active... Time remaining: $n minutes"
+            Start-Sleep -Seconds 60
+            $n--
+          } while ($n -gt 0)
