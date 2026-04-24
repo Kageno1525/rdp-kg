@@ -17,13 +17,17 @@ jobs:
           # استبدل YOUR_AUTH_TOKEN بالتوكن الحقيقي بتاعك
           ./ngrok/ngrok.exe authtoken YOUR_AUTH_TOKEN
           
-      - name: Configure RDP & User
+      - - name: Configure RDP & User
         run: |
-          # إنشاء مستخدم جديد بصلاحيات أدمن
-          net user runneradmin Password123! /add
-          net localgroup administrators runneradmin /add
+          # محاولة تغيير باسورد المستخدم الموجود فعلياً بدلاً من إنشائه من جديد
+          net user runneradmin Password123! /checkpasswordcomplex:no
           
-          # تفعيل الـ RDP في الريجستري والفايروال
+          # التأكد من أنه في مجموعة الأدمن (مش هيطلع خطأ لو موجود أصلاً)
+          if (-not (Get-LocalGroupMember -Group "Administrators" | Where-Object {$_.Name -eq "runneradmin"})) {
+              Add-LocalGroupMember -Group "Administrators" -Member "runneradmin"
+          }
+
+          # تفعيل الـ RDP
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
           Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
